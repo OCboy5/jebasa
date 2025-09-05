@@ -10,7 +10,7 @@ readme = "README.md"
 license = "MIT"
 requires-python = ">=3.8"
 authors = [
-    {name = "Your Name", email = "your.email@example.com"},
+    {name = "OCboy5", email = "your.email@example.com"},
 ]
 keywords = ["japanese", "nlp", "audio", "alignment", "subtitles", "epub", "mfa"]
 classifiers = [
@@ -61,10 +61,10 @@ docs = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/yourusername/jebasa"
+Homepage = "https://github.com/OCboy5/jebasa"
 Documentation = "https://jebasa.readthedocs.io"
-Repository = "https://github.com/yourusername/jebasa"
-"Bug Tracker" = "https://github.com/yourusername/jebasa/issues"
+Repository = "https://github.com/OCboy5/jebasa"
+"Bug Tracker" = "https://github.com/OCboy5/jebasa/issues"
 
 [project.scripts]
 jebasa = "jebasa.cli:main"

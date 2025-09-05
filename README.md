@@ -2,7 +2,7 @@
 
 [![PyPI version](https://badge.fury.io/py/jebasa.svg)](https://badge.fury.io/py/jebasa)
 [![Python Support](https://img.shields.io/pypi/pyversions/jebasa.svg)](https://pypi.org/project/jebasa/)
-[![Tests](https://github.com/yourusername/jebasa/workflows/CI/badge.svg)](https://github.com/yourusername/jebasa/actions)
+[![Tests](https://github.com/OCboy5/jebasa/workflows/CI/badge.svg)](https://github.com/OCboy5/jebasa/actions)
 [![codecov](https://codecov.io/gh/yourusername/jebasa/branch/main/graph/badge.svg)](https://codecov.io/gh/yourusername/jebasa)
 
 **Jebasa** is a Python package that creates synchronized subtitles from Japanese audiobooks and EPUB files using forced alignment. It handles Japanese-specific challenges like furigana annotations and morphological analysis to produce high-quality subtitle files.
@@ -289,8 +289,8 @@ subtitles = pipeline.generate_subtitles()
 ### Getting Help
 
 - Check the [documentation](https://jebasa.readthedocs.io)
-- Report issues on [GitHub](https://github.com/yourusername/jebasa/issues)
-- Join our [discussion forum](https://github.com/yourusername/jebasa/discussions)
+- Report issues on [GitHub](https://github.com/OCboy5/jebasa/issues)
+- Join our [discussion forum](https://github.com/OCboy5/jebasa/discussions)
 
 ## Contributing
 
@@ -315,6 +315,6 @@ If you use Jebasa in your research, please cite:
   title={Jebasa: Japanese ebook audio subtitle aligner},
   author={Your Name},
   year={2024},
-  url={https://github.com/yourusername/jebasa}
+  url={https://github.com/OCboy5/jebasa}
 }
 ```

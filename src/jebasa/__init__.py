@@ -4,8 +4,8 @@ A Python package for creating synchronized subtitles from Japanese audiobooks an
 using Montreal Forced Aligner (MFA).
 """
 
-__version__ = "0.1.0"
-__author__ = "Your Name"
+__version__ = "0.1.1"
+__author__ = "OCboy5"
 __email__ = "your.email@example.com"
 
 from jebasa.audio import AudioProcessor

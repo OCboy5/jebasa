@@ -1,8 +1,8 @@
 site_name: Jebasa Documentation
 site_description: Japanese ebook audio subtitle aligner - Create synchronized subtitles from Japanese audiobooks and EPUB files
 site_url: https://jebasa.readthedocs.io
-repo_name: yourusername/jebasa
-repo_url: https://github.com/yourusername/jebasa
+repo_name: OCboy5/jebasa
+repo_url: https://github.com/OCboy5/jebasa
 
 nav:
   - Home: index.md
@@ -60,7 +60,7 @@ plugins:
 extra:
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/yourusername/jebasa
+      link: https://github.com/OCboy5/jebasa
     - icon: fontawesome/brands/python
       link: https://pypi.org/project/jebasa/
 
