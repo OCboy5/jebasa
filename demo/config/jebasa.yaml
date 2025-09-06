@@ -1,0 +1,37 @@
+# Jebasa Demo Configuration
+# This is an example of how to configure jebasa for simple command usage
+# Based on original tg2srt_final_v3.py approach - minimal settings
+
+# Basic settings (same as original scripts)
+audio:
+  sample_rate: 16000
+  channels: 1
+  format: "wav"
+
+text:
+  tokenizer: "mecab"
+  normalize_text: true
+  extract_furigana: true
+  min_chapter_length: 100
+
+mfa:
+  acoustic_model: "japanese_mfa"
+  beam: 100
+  retry_beam: 400
+  num_jobs: 4
+  single_speaker: true
+
+# Path configuration - this is what enables simple commands
+paths:
+  # Base directories
+  input_dir: "./demo/input"              # Your input files go here
+  output_dir: "./demo/output"            # All output organized here
+  temp_dir: "./demo/temp"                # Temporary files
+  
+  # Stage-specific directories (auto-created under output_dir)
+  # You can customize these or use defaults
+  audio_dir: "processed/audio"           # Prepared audio files
+  text_dir: "processed/text"             # Processed text files  
+  dictionary_dir: "dictionaries"         # Pronunciation dictionaries
+  alignment_dir: "aligned"               # MFA alignment results
+  subtitle_dir: "subtitles"              # Final SRT files

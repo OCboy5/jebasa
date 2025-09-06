@@ -40,12 +40,12 @@ class JebasaPipeline:
         self.config.paths.output_dir.mkdir(parents=True, exist_ok=True)
         self.config.paths.temp_dir.mkdir(parents=True, exist_ok=True)
         
-        # Create subdirectories
-        (self.config.paths.output_dir / "audio").mkdir(exist_ok=True)
-        (self.config.paths.output_dir / "text").mkdir(exist_ok=True)
-        (self.config.paths.output_dir / "dictionaries").mkdir(exist_ok=True)
-        (self.config.paths.output_dir / "aligned").mkdir(exist_ok=True)
-        (self.config.paths.output_dir / "srt").mkdir(exist_ok=True)
+        # Create stage directories
+        self.config.paths.get_stage_dir('audio', self.config).mkdir(parents=True, exist_ok=True)
+        self.config.paths.get_stage_dir('text', self.config).mkdir(parents=True, exist_ok=True)
+        self.config.paths.get_stage_dir('dictionary', self.config).mkdir(parents=True, exist_ok=True)
+        self.config.paths.get_stage_dir('alignment', self.config).mkdir(parents=True, exist_ok=True)
+        self.config.paths.get_stage_dir('subtitle', self.config).mkdir(parents=True, exist_ok=True)
     
     def run_all(self, skip_preparation: bool = False) -> Dict[str, Dict[str, Any]]:
         """Run complete alignment pipeline."""
@@ -139,14 +139,19 @@ class JebasaPipeline:
     
     def prepare_audio(self) -> List[Tuple[Path, Path]]:
         """Prepare audio files for alignment."""
-        input_audio_dir = self.config.paths.input_dir / "audio"
-        output_audio_dir = self.config.paths.output_dir / "audio"
+        # Use the configured audio stage directory, or fall back to legacy paths
+        if hasattr(self.config.paths, 'audio_dir') and self.config.paths.audio_dir:
+            output_audio_dir = self.config.paths.audio_dir
+        else:
+            output_audio_dir = self.config.paths.get_stage_dir('audio', self.config)
         
+        # Determine input directory
+        input_audio_dir = self.config.paths.input_dir / "audio"
         if not input_audio_dir.exists():
             # Try input directory directly
             input_audio_dir = self.config.paths.input_dir
         
-        logger.info(f"Preparing audio files from {input_audio_dir}")
+        logger.info(f"Preparing audio files from {input_audio_dir} to {output_audio_dir}")
         
         try:
             processed_files = self.audio_processor.process_audio_files(
@@ -158,7 +163,6 @@ class JebasaPipeline:
             result_pairs = []
             for processed_file in processed_files:
                 # Find original file
-                original_file = input_audio_dir / f"{processed_file.stem}.*"
                 original_matches = list(input_audio_dir.glob(f"{processed_file.stem}.*"))
                 
                 if original_matches:
@@ -174,14 +178,19 @@ class JebasaPipeline:
     
     def prepare_text(self) -> List[Tuple[Path, Dict[str, Any]]]:
         """Prepare text files for alignment."""
-        input_text_dir = self.config.paths.input_dir / "text"
-        output_text_dir = self.config.paths.output_dir / "text"
+        # Use the configured text stage directory, or fall back to legacy paths
+        if hasattr(self.config.paths, 'text_dir') and self.config.paths.text_dir:
+            output_text_dir = self.config.paths.text_dir
+        else:
+            output_text_dir = self.config.paths.get_stage_dir('text', self.config)
         
+        # Determine input directory
+        input_text_dir = self.config.paths.input_dir / "text"
         if not input_text_dir.exists():
             # Try input directory directly
             input_text_dir = self.config.paths.input_dir
         
-        logger.info(f"Preparing text files from {input_text_dir}")
+        logger.info(f"Preparing text files from {input_text_dir} to {output_text_dir}")
         
         try:
             processed_files = self.text_processor.process_text_files(
@@ -197,10 +206,19 @@ class JebasaPipeline:
     
     def create_dictionary(self, review_file: bool = True) -> Dict[str, Any]:
         """Create pronunciation dictionary."""
-        text_output_dir = self.config.paths.output_dir / "text"
-        dict_output_dir = self.config.paths.output_dir / "dictionaries"
+        # Use the configured dictionary stage directory, or fall back to legacy paths
+        if hasattr(self.config.paths, 'dictionary_dir') and self.config.paths.dictionary_dir:
+            dict_output_dir = self.config.paths.dictionary_dir
+        else:
+            dict_output_dir = self.config.paths.get_stage_dir('dictionary', self.config)
         
-        logger.info("Creating pronunciation dictionary")
+        # Use text directory from previous stage
+        if hasattr(self.config.paths, 'text_dir') and self.config.paths.text_dir:
+            text_output_dir = self.config.paths.text_dir
+        else:
+            text_output_dir = self.config.paths.get_stage_dir('text', self.config)
+        
+        logger.info(f"Creating pronunciation dictionary from {text_output_dir} to {dict_output_dir}")
         
         try:
             dict_results = self.dictionary_creator.create_dictionary(
@@ -220,16 +238,30 @@ class JebasaPipeline:
     
     def run_alignment(self, dictionary_file: Optional[Path] = None) -> List[Dict[str, Any]]:
         """Run forced alignment."""
-        corpus_dir = self.config.paths.output_dir
-        alignment_output_dir = self.config.paths.output_dir / "aligned"
+        # Use the configured alignment stage directory, or fall back to legacy paths
+        if hasattr(self.config.paths, 'alignment_dir') and self.config.paths.alignment_dir:
+            alignment_output_dir = self.config.paths.alignment_dir
+        else:
+            alignment_output_dir = self.config.paths.get_stage_dir('alignment', self.config)
+        
+        # Use audio directory as corpus input
+        if hasattr(self.config.paths, 'audio_dir') and self.config.paths.audio_dir:
+            corpus_dir = self.config.paths.audio_dir
+        else:
+            corpus_dir = self.config.paths.get_stage_dir('audio', self.config)
         
         # Use custom dictionary if available
         if dictionary_file is None:
-            dict_file = corpus_dir / "dictionaries" / "combined_mfa_dictionary.dict"
+            if hasattr(self.config.paths, 'dictionary_dir') and self.config.paths.dictionary_dir:
+                dict_dir = self.config.paths.dictionary_dir
+            else:
+                dict_dir = self.config.paths.get_stage_dir('dictionary', self.config)
+            
+            dict_file = dict_dir / "combined_mfa_dictionary.dict"
             if dict_file.exists():
                 dictionary_file = dict_file
         
-        logger.info("Running forced alignment")
+        logger.info(f"Running forced alignment from {corpus_dir} to {alignment_output_dir}")
         
         try:
             alignment_results = self.alignment_runner.run_alignment(
@@ -246,11 +278,25 @@ class JebasaPipeline:
     
     def generate_subtitles(self) -> List[Tuple[Path, Dict[str, Any]]]:
         """Generate subtitle files."""
-        alignment_dir = self.config.paths.output_dir / "aligned"
-        text_dir = self.config.paths.output_dir / "text"
-        subtitle_output_dir = self.config.paths.output_dir / "srt"
+        # Use the configured subtitle stage directory, or fall back to legacy paths
+        if hasattr(self.config.paths, 'subtitle_dir') and self.config.paths.subtitle_dir:
+            subtitle_output_dir = self.config.paths.subtitle_dir
+        else:
+            subtitle_output_dir = self.config.paths.get_stage_dir('subtitle', self.config)
         
-        logger.info("Generating subtitle files")
+        # Use alignment directory from previous stage
+        if hasattr(self.config.paths, 'alignment_dir') and self.config.paths.alignment_dir:
+            alignment_dir = self.config.paths.alignment_dir
+        else:
+            alignment_dir = self.config.paths.get_stage_dir('alignment', self.config)
+        
+        # Use text directory from previous stage
+        if hasattr(self.config.paths, 'text_dir') and self.config.paths.text_dir:
+            text_dir = self.config.paths.text_dir
+        else:
+            text_dir = self.config.paths.get_stage_dir('text', self.config)
+        
+        logger.info(f"Generating subtitle files from {alignment_dir} and {text_dir} to {subtitle_output_dir}")
         
         try:
             subtitle_results = self.subtitle_generator.generate_subtitles(
@@ -434,7 +480,7 @@ class JebasaPipeline:
                 'aligned': len(list((self.config.paths.output_dir / "aligned").glob("*.TextGrid"))),
                 'subtitles': len(list((self.config.paths.output_dir / "srt").glob("*.srt")))
             },
-            'config': self.config.dict()
+            'config': self.config.model_dump()
         }
         
         return status
@@ -444,7 +490,7 @@ class JebasaPipeline:
         report = {
             'timestamp': datetime.now().isoformat(),
             'duration_seconds': duration,
-            'config': self.config.dict(),
+            'config': self.config.model_dump(),
             'results': results,
             'status': self.get_pipeline_status()
         }

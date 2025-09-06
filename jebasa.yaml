@@ -1,0 +1,40 @@
+# Jebasa Configuration File
+# This file defines the paths and settings for the Japanese audio-text alignment pipeline
+
+# Audio processing settings
+audio:
+  sample_rate: 16000
+  channels: 1
+  format: "wav"
+  ffmpeg_options: {}
+
+# Text processing settings  
+text:
+  tokenizer: "mecab"
+  normalize_text: true
+  extract_furigana: true
+  min_chapter_length: 100
+
+# Montreal Forced Aligner settings
+mfa:
+  acoustic_model: "japanese_mfa"
+  beam: 100
+  retry_beam: 400
+  num_jobs: 4
+  single_speaker: true
+  textgrid_cleanup: true
+
+# Path configuration - this is the key to simplified CLI usage
+paths:
+  # Base directories
+  input_dir: "./my_book"          # Your input files go here
+  output_dir: "./output"          # All output will be organized here
+  temp_dir: "./temp"              # Temporary files
+  
+  # Stage-specific directories (relative to output_dir if not absolute)
+  # You can customize these paths or use the defaults
+  audio_dir: "processed/audio"    # Prepared audio files
+  text_dir: "processed/text"      # Processed text files  
+  dictionary_dir: "dictionaries"  # Pronunciation dictionaries
+  alignment_dir: "aligned"        # MFA alignment results
+  subtitle_dir: "subtitles"       # Final SRT files

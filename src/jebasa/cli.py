@@ -50,12 +50,12 @@ def main(ctx: click.Context, config: Optional[Path], verbose: bool, debug: bool)
 @click.option(
     "--input-dir", "-i",
     type=click.Path(exists=True, file_okay=False, path_type=Path),
-    help="Input directory containing audio and text files"
+    help="Input directory containing audio files (overrides config)"
 )
 @click.option(
     "--output-dir", "-o",
     type=click.Path(path_type=Path),
-    help="Output directory for generated files"
+    help="Output directory for processed audio (overrides config)"
 )
 @click.option(
     "--audio-format",
@@ -69,25 +69,44 @@ def main(ctx: click.Context, config: Optional[Path], verbose: bool, debug: bool)
     default=16000,
     help="Audio sample rate in Hz"
 )
+@click.option(
+    "--stage-dir",
+    type=click.Path(path_type=Path),
+    help="Custom stage directory (overrides config stage paths)"
+)
 @click.pass_context
 def prepare_audio(
     ctx: click.Context,
     input_dir: Optional[Path],
     output_dir: Optional[Path],
     audio_format: str,
-    sample_rate: int
+    sample_rate: int,
+    stage_dir: Optional[Path]
 ) -> None:
     """Prepare audio files for alignment.
     
     Converts audio files to the format required by MFA (16kHz, mono, WAV).
+    Uses configuration paths when input/output directories not specified.
     """
     config = ctx.obj['config']
     
-    # Override config with CLI options
-    if input_dir:
-        config.paths.input_dir = input_dir
-    if output_dir:
-        config.paths.output_dir = output_dir
+    # Determine input and output directories
+    input_directory = input_dir or config.paths.input_dir
+    
+    if stage_dir:
+        # Use custom stage directory
+        output_directory = stage_dir
+    elif output_dir:
+        # Use explicitly specified output directory
+        output_directory = output_dir
+    else:
+        # Use configured stage directory
+        output_directory = config.paths.get_stage_dir('audio', config)
+    
+    # Override config with resolved paths
+    config.paths.input_dir = input_directory
+    config.paths.audio_dir = output_directory  # Store for later stages
+    
     if audio_format:
         config.audio.format = audio_format
     if sample_rate:
@@ -121,12 +140,12 @@ def prepare_audio(
 @click.option(
     "--input-dir", "-i",
     type=click.Path(exists=True, file_okay=False, path_type=Path),
-    help="Input directory containing text files"
+    help="Input directory containing text files (overrides config)"
 )
 @click.option(
     "--output-dir", "-o",
     type=click.Path(path_type=Path),
-    help="Output directory for processed text files"
+    help="Output directory for processed text files (overrides config)"
 )
 @click.option(
     "--tokenizer",
@@ -139,26 +158,44 @@ def prepare_audio(
     default=True,
     help="Extract furigana annotations"
 )
+@click.option(
+    "--stage-dir",
+    type=click.Path(path_type=Path),
+    help="Custom stage directory (overrides config stage paths)"
+)
 @click.pass_context
 def prepare_text(
     ctx: click.Context,
     input_dir: Optional[Path],
     output_dir: Optional[Path],
     tokenizer: str,
-    extract_furigana: bool
+    extract_furigana: bool,
+    stage_dir: Optional[Path]
 ) -> None:
     """Prepare text files for alignment.
     
     Extracts and processes text from EPUB/XHTML files, handles furigana annotations,
     and creates tokenized text suitable for MFA alignment.
+    Uses configuration paths when directories not specified.
     """
     config = ctx.obj['config']
     
-    # Override config with CLI options
-    if input_dir:
-        config.paths.input_dir = input_dir
-    if output_dir:
-        config.paths.output_dir = output_dir
+    # Determine input and output directories
+    input_directory = input_dir or config.paths.input_dir
+    
+    if stage_dir:
+        # Use custom stage directory
+        output_directory = stage_dir
+    elif output_dir:
+        # Use explicitly specified output directory
+        output_directory = output_dir
+    else:
+        # Use configured stage directory
+        output_directory = config.paths.get_stage_dir('text', config)
+    
+    # Override config with resolved paths
+    config.paths.input_dir = input_directory
+    config.paths.text_dir = output_directory  # Store for later stages
     if tokenizer:
         config.text.tokenizer = tokenizer
     config.text.extract_furigana = extract_furigana
@@ -185,37 +222,55 @@ def prepare_text(
 @click.option(
     "--input-dir", "-i",
     type=click.Path(exists=True, file_okay=False, path_type=Path),
-    help="Input directory containing processed text files"
+    help="Input directory containing processed text files (overrides config)"
 )
 @click.option(
     "--output-dir", "-o",
     type=click.Path(path_type=Path),
-    help="Output directory for dictionary files"
+    help="Output directory for dictionary files (overrides config)"
 )
 @click.option(
     "--review/--no-review",
     default=True,
     help="Generate review file for manual verification"
 )
+@click.option(
+    "--stage-dir",
+    type=click.Path(path_type=Path),
+    help="Custom stage directory (overrides config stage paths)"
+)
 @click.pass_context
 def create_dictionary(
     ctx: click.Context,
     input_dir: Optional[Path],
     output_dir: Optional[Path],
-    review: bool
+    review: bool,
+    stage_dir: Optional[Path]
 ) -> None:
     """Create pronunciation dictionary for MFA.
     
     Generates custom pronunciation dictionary from furigana annotations and
     combines with base MFA dictionary.
+    Uses configuration paths when directories not specified.
     """
     config = ctx.obj['config']
     
-    # Override config with CLI options
-    if input_dir:
-        config.paths.input_dir = input_dir
-    if output_dir:
-        config.paths.output_dir = output_dir
+    # Determine input and output directories
+    input_directory = input_dir or config.paths.get_stage_dir('text', config)
+    
+    if stage_dir:
+        # Use custom stage directory
+        output_directory = stage_dir
+    elif output_dir:
+        # Use explicitly specified output directory
+        output_directory = output_dir
+    else:
+        # Use configured stage directory
+        output_directory = config.paths.get_stage_dir('dictionary', config)
+    
+    # Override config with resolved paths
+    config.paths.input_dir = input_directory
+    config.paths.dictionary_dir = output_directory  # Store for later stages
     
     try:
         pipeline = JebasaPipeline(config)
@@ -240,17 +295,17 @@ def create_dictionary(
 @click.option(
     "--corpus-dir", "-c",
     type=click.Path(exists=True, file_okay=False, path_type=Path),
-    help="Directory containing audio-text pairs for alignment"
+    help="Directory containing audio-text pairs for alignment (overrides config)"
 )
 @click.option(
     "--dictionary",
     type=click.Path(exists=True, path_type=Path),
-    help="Pronunciation dictionary file"
+    help="Pronunciation dictionary file (auto-detected if not specified)"
 )
 @click.option(
     "--output-dir", "-o",
     type=click.Path(path_type=Path),
-    help="Output directory for alignment results"
+    help="Output directory for alignment results (overrides config)"
 )
 @click.option(
     "--num-jobs", "-j",
@@ -258,25 +313,54 @@ def create_dictionary(
     default=4,
     help="Number of parallel jobs"
 )
+@click.option(
+    "--stage-dir",
+    type=click.Path(path_type=Path),
+    help="Custom stage directory (overrides config stage paths)"
+)
 @click.pass_context
 def align(
     ctx: click.Context,
     corpus_dir: Optional[Path],
     dictionary: Optional[Path],
     output_dir: Optional[Path],
-    num_jobs: int
+    num_jobs: int,
+    stage_dir: Optional[Path]
 ) -> None:
     """Run Montreal Forced Aligner.
     
     Performs forced alignment between audio and text files using MFA.
+    Uses configuration paths when directories not specified.
     """
     config = ctx.obj['config']
     
-    # Override config with CLI options
-    if corpus_dir:
-        config.paths.input_dir = corpus_dir
-    if output_dir:
-        config.paths.output_dir = output_dir
+    # Determine corpus directory (audio-text pairs)
+    corpus_directory = corpus_dir or config.paths.get_stage_dir('audio', config)
+    
+    if stage_dir:
+        # Use custom stage directory
+        output_directory = stage_dir
+    elif output_dir:
+        # Use explicitly specified output directory
+        output_directory = output_dir
+    else:
+        # Use configured alignment directory
+        output_directory = config.paths.get_stage_dir('alignment', config)
+    
+    # Auto-detect dictionary if not provided
+    if not dictionary:
+        dict_dir = config.paths.get_stage_dir('dictionary', config)
+        dict_files = list(dict_dir.glob("*.dict"))
+        if dict_files:
+            dictionary = dict_files[0]  # Use first dictionary found
+            console.print(f"[blue]ℹ[/blue] Using dictionary: {dictionary.name}")
+        else:
+            # Fall back to default MFA dictionary location
+            dictionary = None  # Let MFA use its default
+    
+    # Override config with resolved paths
+    config.paths.input_dir = corpus_directory
+    config.paths.alignment_dir = output_directory
     if num_jobs:
         config.mfa.num_jobs = num_jobs
     
@@ -307,23 +391,22 @@ def align(
 @click.option(
     "--alignment-dir", "-a",
     type=click.Path(exists=True, file_okay=False, path_type=Path),
-    help="Directory containing TextGrid alignment files"
+    help="Directory containing TextGrid alignment files (auto-detected if not specified)"
 )
 @click.option(
     "--text-dir", "-t",
     type=click.Path(exists=True, file_okay=False, path_type=Path),
-    help="Directory containing original text files"
+    help="Directory containing original text files (auto-detected if not specified)"
 )
 @click.option(
     "--output-dir", "-o",
     type=click.Path(path_type=Path),
-    help="Output directory for SRT files"
+    help="Output directory for SRT files (overrides config)"
 )
 @click.option(
-    "--max-line-length",
-    type=int,
-    default=42,
-    help="Maximum characters per subtitle line"
+    "--stage-dir",
+    type=click.Path(path_type=Path),
+    help="Custom stage directory (overrides config stage paths)"
 )
 @click.pass_context
 def generate_subtitles(
@@ -331,23 +414,45 @@ def generate_subtitles(
     alignment_dir: Optional[Path],
     text_dir: Optional[Path],
     output_dir: Optional[Path],
-    max_line_length: int
+    stage_dir: Optional[Path]
 ) -> None:
     """Generate SRT subtitle files.
     
-    Converts MFA TextGrid output to SRT format with proper timing and text formatting.
+    Converts MFA TextGrid output to SRT format using the original tg2srt_final_v3.py logic.
+    Uses hardcoded settings from original script (no configuration options).
     """
     config = ctx.obj['config']
     
-    # Override config with CLI options
-    if alignment_dir:
-        config.paths.input_dir = alignment_dir
-    if text_dir:
-        config.paths.temp_dir = text_dir  # Store text dir in temp for this command
-    if output_dir:
-        config.paths.output_dir = output_dir
-    if max_line_length:
-        config.subtitles.max_line_length = max_line_length
+    # Auto-detect alignment directory if not provided
+    if not alignment_dir:
+        alignment_directory = config.paths.get_stage_dir('alignment', config)
+        if not alignment_directory.exists():
+            console.print(f"[yellow]⚠[/yellow] Alignment directory not found: {alignment_directory}")
+            console.print("[blue]ℹ[/blue] Use --alignment-dir to specify location")
+            sys.exit(1)
+    else:
+        alignment_directory = alignment_dir
+    
+    # Auto-detect text directory if not provided
+    if not text_dir:
+        text_directory = config.paths.get_stage_dir('text', config)
+    else:
+        text_directory = text_dir
+    
+    if stage_dir:
+        # Use custom stage directory
+        output_directory = stage_dir
+    elif output_dir:
+        # Use explicitly specified output directory
+        output_directory = output_dir
+    else:
+        # Use configured subtitle directory
+        output_directory = config.paths.get_stage_dir('subtitle', config)
+    
+    # Override config with resolved paths
+    config.paths.input_dir = alignment_directory  # TextGrid files
+    config.paths.temp_dir = text_directory        # Original text files
+    config.paths.subtitle_dir = output_directory  # SRT output
     
     try:
         pipeline = JebasaPipeline(config)
@@ -370,29 +475,36 @@ def generate_subtitles(
 @click.option(
     "--input-dir", "-i",
     type=click.Path(exists=True, file_okay=False, path_type=Path),
-    help="Input directory containing audio and text files"
+    help="Input directory containing audio and text files (overrides config)"
 )
 @click.option(
     "--output-dir", "-o",
     type=click.Path(path_type=Path),
-    help="Output directory for all generated files"
+    help="Output directory for all generated files (overrides config)"
 )
 @click.option(
     "--skip-preparation",
     is_flag=True,
     help="Skip audio/text preparation (use pre-processed files)"
 )
+@click.option(
+    "--stages",
+    type=click.Choice(["all", "prepare", "align", "subtitle"]),
+    default="all",
+    help="Which pipeline stages to run"
+)
 @click.pass_context
 def run(
     ctx: click.Context,
     input_dir: Optional[Path],
     output_dir: Optional[Path],
-    skip_preparation: bool
+    skip_preparation: bool,
+    stages: str
 ) -> None:
     """Run complete alignment pipeline.
     
-    Executes all stages: audio preparation, text processing, dictionary creation,
-    alignment, and subtitle generation.
+    Executes pipeline stages: audio preparation, text processing, dictionary creation,
+    alignment, and subtitle generation. Uses configuration paths when directories not specified.
     """
     config = ctx.obj['config']
     
@@ -481,23 +593,19 @@ def config(ctx: click.Context) -> None:
     table.add_column("Value", style="green")
     
     # Audio config
-    for key, value in config.audio.dict().items():
+    for key, value in config.audio.model_dump().items():
         table.add_row("Audio", key.replace('_', ' ').title(), str(value))
     
     # Text config
-    for key, value in config.text.dict().items():
+    for key, value in config.text.model_dump().items():
         table.add_row("Text", key.replace('_', ' ').title(), str(value))
     
     # MFA config
-    for key, value in config.mfa.dict().items():
+    for key, value in config.mfa.model_dump().items():
         table.add_row("MFA", key.replace('_', ' ').title(), str(value))
     
-    # Subtitle config
-    for key, value in config.subtitles.dict().items():
-        table.add_row("Subtitles", key.replace('_', ' ').title(), str(value))
-    
     # Path config
-    for key, value in config.paths.dict().items():
+    for key, value in config.paths.model_dump().items():
         table.add_row("Paths", key.replace('_', ' ').title(), str(value))
     
     console.print(table)

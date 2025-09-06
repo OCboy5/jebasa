@@ -36,25 +36,61 @@ class MFAConfig(BaseModel):
 
 
 class SubtitleConfig(BaseModel):
-    """Subtitle generation configuration."""
-    max_line_length: int = Field(default=42, description="Maximum characters per line")
-    max_lines: int = Field(default=2, description="Maximum lines per subtitle")
-    min_duration: float = Field(default=1.0, description="Minimum subtitle duration in seconds")
-    max_duration: float = Field(default=7.0, description="Maximum subtitle duration in seconds")
-    gap_filling: bool = Field(default=True, description="Fill gaps between aligned segments")
+    """Subtitle generation configuration - simplified to match original script."""
+    # No configurable settings - uses hardcoded values from original tg2srt_final_v3.py
+    # Key hardcoded values from original script:
+    # - seconds_to_move = 0.3 (gap adjustment)
+    # - 2.0 seconds per unaligned sentence
+    # - 0.1 seconds minimum gap threshold
+    # - No line length limits (full sentences)
 
 
 class PathConfig(BaseModel):
     """Path configuration."""
-    input_dir: Path = Field(default=Path("input"), description="Input directory")
-    output_dir: Path = Field(default=Path("output"), description="Output directory")
+    input_dir: Path = Field(default=Path("input"), description="Base input directory")
+    output_dir: Path = Field(default=Path("output"), description="Base output directory")
     temp_dir: Path = Field(default=Path("temp"), description="Temporary directory")
+    
+    # Stage-specific directories (relative to output_dir if not absolute)
+    audio_dir: Optional[Path] = Field(default=None, description="Prepared audio files directory")
+    text_dir: Optional[Path] = Field(default=None, description="Processed text files directory")
+    dictionary_dir: Optional[Path] = Field(default=None, description="Dictionary files directory")
+    alignment_dir: Optional[Path] = Field(default=None, description="MFA alignment results directory")
+    subtitle_dir: Optional[Path] = Field(default=None, description="Generated subtitle files directory")
     
     @validator('*', pre=True)
     def convert_to_path(cls, v):
         if isinstance(v, str):
             return Path(v)
         return v
+    
+    def get_stage_dir(self, stage: str, base_config: "JebasaConfig") -> Path:
+        """Get the appropriate directory for a pipeline stage."""
+        stage_dirs = {
+            'audio': self.audio_dir,
+            'text': self.text_dir,
+            'dictionary': self.dictionary_dir,
+            'alignment': self.alignment_dir,
+            'subtitle': self.subtitle_dir
+        }
+        
+        # If stage-specific directory is configured, use it
+        if stage_dirs[stage]:
+            # Make absolute if relative
+            if not stage_dirs[stage].is_absolute():
+                return base_config.paths.output_dir / stage_dirs[stage]
+            return stage_dirs[stage]
+        
+        # Default to standard subdirectories under output_dir
+        defaults = {
+            'audio': 'processed/audio',
+            'text': 'processed/text', 
+            'dictionary': 'dictionaries',
+            'alignment': 'aligned',
+            'subtitle': 'subtitles'
+        }
+        
+        return base_config.paths.output_dir / defaults[stage]
 
 
 class JebasaConfig(BaseModel):
@@ -85,7 +121,7 @@ class JebasaConfig(BaseModel):
         config_path.parent.mkdir(parents=True, exist_ok=True)
         
         # Convert to dict and handle Path objects
-        config_dict = self.dict()
+        config_dict = self.model_dump()
         
         # Convert Path objects to strings for YAML serialization
         def convert_paths(obj):
